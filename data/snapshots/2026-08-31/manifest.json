@@ -1,0 +1,11 @@
+{
+  "snapshot_id": "2026-08-31",
+  "captured_at": "2026-08-31T12:00:00+08:00",
+  "mode": "curated_official_excerpts",
+  "note": "正文为各官方网页公开文本的摘录，足以核验来源与结论；完整条文请点击 original_url 查阅。采集时间以 captured_at 为准。",
+  "coverage": {
+    "national": ["cac", "miit", "most", "gov_cn"],
+    "regional": ["beijing", "shanghai", "guangdong", "zhejiang"]
+  },
+  "policy_count": 12
+}
