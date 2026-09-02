@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.local
+
+# Env & secrets
+.env
+.env.local
+*.pem
+credentials.json
+
+# Runtime data (keep snapshots, ignore live DB)
+data/*.db
+data/*.db-journal
+data/*.sqlite
+data/runtime/
+backend/*.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# OS
+desktop.ini
