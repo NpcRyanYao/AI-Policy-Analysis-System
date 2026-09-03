@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class CategoryOut(BaseModel):
@@ -105,6 +105,20 @@ class ManualIngestIn(BaseModel):
     policy_level: str | None = None
     source_id: str = "manual"
     content: str | None = None
+
+    @field_validator("title", "issuing_org", "policy_level", "content", mode="before")
+    @classmethod
+    def _blank_str_to_none(cls, value: Any) -> Any:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("publish_time", mode="before")
+    @classmethod
+    def _blank_date_to_none(cls, value: Any) -> Any:
+        if value is None or value == "":
+            return None
+        return value
 
 
 class SubscriptionIn(BaseModel):

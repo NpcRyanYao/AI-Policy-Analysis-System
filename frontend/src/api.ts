@@ -8,7 +8,17 @@ export const http = axios.create({
 http.interceptors.response.use(
   (resp) => resp,
   (err) => {
-    const message = err.response?.data?.error?.message || err.message || "请求失败";
+    const data = err.response?.data;
+    const validation = Array.isArray(data?.detail)
+      ? data.detail
+          .map((item: { loc?: unknown[]; msg?: string }) => {
+            const field = Array.isArray(item.loc) ? item.loc.filter((x) => x !== "body").join(".") : "";
+            return `${field} ${item.msg || ""}`.trim();
+          })
+          .join("；")
+      : "";
+    const message =
+      data?.error?.message || validation || (typeof data?.detail === "string" ? data.detail : "") || err.message || "请求失败";
     return Promise.reject(new Error(message));
   },
 );
@@ -21,7 +31,8 @@ export const api = {
   policy: (id: string) => http.get(`/policies/${id}`),
   related: (id: string) => http.get(`/policies/${id}/related`),
   analyze: (id: string) => http.post(`/policies/${id}/analyze`),
-  compare: (policy_ids: string[]) => http.post("/policies/compare", { policy_ids }),
+  compare: (policy_ids: string[]) =>
+    http.post("/policies/compare", { policy_ids }, { timeout: 180000 }),
   favorites: () => http.get("/favorites"),
   addFavorite: (id: string) => http.post(`/favorites/${id}`),
   removeFavorite: (id: string) => http.delete(`/favorites/${id}`),

@@ -59,9 +59,21 @@ const form = reactive({
 });
 
 async function submit() {
+  if (!/^https?:\/\//i.test(form.url.trim())) {
+    ElMessage.warning("请填写以 http:// 或 https:// 开头的原文链接");
+    return;
+  }
   loading.value = true;
   try {
-    const { data } = await api.ingestUrl({ ...form, source_id: "manual" });
+    const payload = {
+      url: form.url.trim(),
+      title: form.title.trim() || null,
+      issuing_org: form.issuing_org.trim() || null,
+      publish_time: form.publish_time || null,
+      content: form.content.trim() || null,
+      source_id: "manual",
+    };
+    const { data } = await api.ingestUrl(payload);
     ElMessage.success("补录成功");
     router.push(`/policies/${data.id}`);
   } catch (e: any) {
