@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.llm.client import ANALYSIS_PROMPT, COMPARE_PROMPT, PARSE_PROMPT, LLMClient
+from app.llm.client import (
+    ANALYSIS_PROMPT,
+    COMPARE_PROMPT,
+    PARSE_PROMPT,
+    LLMClient,
+    normalize_compare_payload,
+)
 from app.models.policy import ComplianceAnalysis, Policy, PolicyCategory, PolicyClause, PolicyStructured
 from app.services.rule_engine import analyze_policy_rules, compare_policies_rules, parse_policy_rules
 from app.services.utils import parse_date, utcnow
+
+logger = logging.getLogger(__name__)
 
 
 def parse_and_analyze(session: Session, policy: Policy, *, force: bool = False) -> Policy:
@@ -76,12 +85,18 @@ def compare_policies(session: Session, policies: list[Policy]) -> dict:
             }
         )
     result = None
+    llm_used = False
     if llm.available:
-        result = llm.complete_json(COMPARE_PROMPT.format(bundle=bundle_items))
+        raw = llm.complete_json(COMPARE_PROMPT.format(bundle=bundle_items), retries=0)
+        result = normalize_compare_payload(raw)
+        llm_used = result is not None
+        if raw and not result:
+            logger.warning("对比模型 JSON 缺少可展示字段，回退规则引擎 keys=%s", list(raw.keys()))
     if not result:
         result = compare_policies_rules(bundle_items)
+        llm_used = False
     result["provenance"] = result.get("provenance") or {"kind": "inference"}
-    result["provenance"]["llm_used"] = bool(llm.available)
+    result["provenance"]["llm_used"] = llm_used
     return result
 
 
