@@ -12,7 +12,7 @@
       <a class="src-link" :href="detail.original_url" target="_blank" rel="noopener">查看官方原文 ↗</a>
       <el-button size="small" style="margin-left:8px" @click="toggleFav">{{ detail.favorited ? "取消收藏" : "收藏" }}</el-button>
       <a class="el-button el-button--small" :href="api.pdfUrl(detail.id)" target="_blank" rel="noopener">导出 PDF</a>
-      <el-button size="small" @click="refresh">重新生成合规摘要</el-button>
+      <el-button size="small" :loading="refreshing" @click="refresh">重新生成合规摘要</el-button>
     </p>
     <el-tag v-for="c in detail.categories" :key="c.category + c.subcategory" style="margin:0 8px 12px 0">{{ c.label }}</el-tag>
 
@@ -87,6 +87,7 @@ const route = useRoute();
 const detail = ref<any>(null);
 const related = ref<any[]>([]);
 const hl = ref("");
+const refreshing = ref(false);
 const disclaimer = computed(
   () => detail.value?.analysis?.provenance?.disclaimer || "分析结论需对照原文使用，不构成法律意见。",
 );
@@ -120,12 +121,16 @@ async function toggleFav() {
 }
 
 async function refresh() {
+  refreshing.value = true;
   try {
     await api.analyze(detail.value.id);
     await load();
     ElMessage.success("已重新生成");
   } catch (e: any) {
-    ElMessage.error(e.message);
+    const msg = e.message || "生成失败";
+    ElMessage.error(msg.includes("timeout") ? "生成超时：DeepSeek 响应过慢，可把 .env 中 LLM_TIMEOUT_SECONDS 调到 120 后重启后端" : msg);
+  } finally {
+    refreshing.value = false;
   }
 }
 </script>

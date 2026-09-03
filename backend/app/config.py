@@ -42,8 +42,8 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
     llm_model: str = "ep-xxxxxxxx"
-    llm_timeout_seconds: int = 60
-    llm_max_retries: int = 2
+    llm_timeout_seconds: int = 120
+    llm_max_retries: int = 1
 
     crawl_enabled: bool = False
     crawl_interval_seconds: float = 3.0
