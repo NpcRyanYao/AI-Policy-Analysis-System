@@ -30,7 +30,7 @@ export const api = {
   policies: (params: Record<string, unknown>) => http.get("/policies", { params }),
   policy: (id: string) => http.get(`/policies/${id}`),
   related: (id: string) => http.get(`/policies/${id}/related`),
-  analyze: (id: string) => http.post(`/policies/${id}/analyze`),
+  analyze: (id: string) => http.post(`/policies/${id}/analyze`, null, { timeout: 180000 }),
   compare: (policy_ids: string[]) =>
     http.post("/policies/compare", { policy_ids }, { timeout: 180000 }),
   favorites: () => http.get("/favorites"),

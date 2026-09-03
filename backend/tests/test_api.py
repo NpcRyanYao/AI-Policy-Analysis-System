@@ -55,3 +55,21 @@ def test_not_found(client):
     resp = client.get("/api/v1/policies/does-not-exist")
     assert resp.status_code == 404
     assert resp.json()["error"]["code"] == "not_found"
+
+
+def test_reanalyze_loaded_policy_twice(client):
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+    from app.models.policy import Policy
+    from app.services.analysis_service import parse_and_analyze
+    from app.services.policy_service import load_policy
+
+    pid = client.get("/api/v1/policies", params={"page_size": 1}).json()["items"][0]["id"]
+    with SessionLocal() as session:
+        parse_and_analyze(session, load_policy(session, pid), force=True)
+        session.commit()
+        parse_and_analyze(session, load_policy(session, pid), force=True)
+        session.commit()
+        policy = session.execute(select(Policy).where(Policy.id == pid)).scalar_one()
+        assert policy.status == "analyzed"

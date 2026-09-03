@@ -23,13 +23,8 @@ logger = logging.getLogger(__name__)
 def parse_and_analyze(session: Session, policy: Policy, *, force: bool = False) -> Policy:
     settings = get_settings()
     llm = LLMClient(settings)
-    structured_raw = None
-    if llm.available:
-        structured_raw = llm.complete_json(
-            PARSE_PROMPT.format(title=policy.title, org=policy.issuing_org, content=policy.content[:12000])
-        )
-    if not structured_raw:
-        structured_raw = parse_policy_rules(policy.title, policy.content, policy.issuing_org)
+    # 结构化用规则引擎，避免一次刷新连续打两次大模型导致前端超时
+    structured_raw = parse_policy_rules(policy.title, policy.content, policy.issuing_org)
 
     _apply_structured(session, policy, structured_raw)
 
@@ -39,8 +34,10 @@ def parse_and_analyze(session: Session, policy: Policy, *, force: bool = False) 
             ANALYSIS_PROMPT.format(
                 title=policy.title,
                 structured=structured_raw,
-                content=policy.content[:12000],
-            )
+                content=policy.content[:4000],
+            ),
+            retries=0,
+            timeout=max(settings.llm_timeout_seconds, 120),
         )
     if not analysis_raw:
         analysis_raw = analyze_policy_rules(policy.title, policy.content, structured_raw)
@@ -65,7 +62,6 @@ def parse_and_analyze(session: Session, policy: Policy, *, force: bool = False) 
         policy.effective_time = parse_date(structured_raw.get("effective_time"))
     if structured_raw.get("policy_level"):
         policy.policy_level = structured_raw["policy_level"]
-    session.add(policy)
     session.flush()
     return policy
 
@@ -101,20 +97,20 @@ def compare_policies(session: Session, policies: list[Policy]) -> dict:
 
 
 def _apply_structured(session: Session, policy: Policy, data: dict) -> None:
-    session.query(PolicyCategory).filter(PolicyCategory.policy_id == policy.id).delete()
-    session.query(PolicyClause).filter(PolicyClause.policy_id == policy.id).delete()
+    # 走 ORM 集合删除，避免 bulk delete 后 policy.categories 仍引用已删除实例
+    policy.categories.clear()
+    policy.clauses.clear()
+    session.flush()
     for item in data.get("categories") or []:
-        session.add(
+        policy.categories.append(
             PolicyCategory(
-                policy_id=policy.id,
                 category=item.get("category") or "industry_supervision",
                 subcategory=item.get("subcategory") or "",
             )
         )
     for item in data.get("clauses") or []:
-        session.add(
+        policy.clauses.append(
             PolicyClause(
-                policy_id=policy.id,
                 clause_type=item.get("clause_type") or "mandatory",
                 text=item.get("text") or "",
                 article_no=item.get("article_no") or "",

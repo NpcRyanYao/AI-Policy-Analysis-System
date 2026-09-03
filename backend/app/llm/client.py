@@ -77,7 +77,13 @@ class LLMClient:
     def available(self) -> bool:
         return self.settings.llm_configured
 
-    def complete_json(self, user_prompt: str, *, retries: int | None = None) -> dict[str, Any] | None:
+    def complete_json(
+        self,
+        user_prompt: str,
+        *,
+        retries: int | None = None,
+        timeout: int | None = None,
+    ) -> dict[str, Any] | None:
         if not self.available:
             return None
         payload = {
@@ -96,9 +102,11 @@ class LLMClient:
         }
         last_error: Exception | None = None
         attempts = (self.settings.llm_max_retries if retries is None else retries) + 1
+        seconds = timeout if timeout is not None else self.settings.llm_timeout_seconds
+        http_timeout = httpx.Timeout(seconds, connect=15.0)
         for attempt in range(max(1, attempts)):
             try:
-                with httpx.Client(timeout=self.settings.llm_timeout_seconds) as client:
+                with httpx.Client(timeout=http_timeout) as client:
                     resp = client.post(url, headers=headers, json=payload)
                     resp.raise_for_status()
                     data = resp.json()
@@ -110,7 +118,7 @@ class LLMClient:
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
                 logger.warning("LLM 调用失败 attempt=%s err=%s", attempt + 1, exc)
-                if retries == 0:
+                if retries == 0 or isinstance(exc, httpx.TimeoutException):
                     break
         logger.error("LLM 调用最终失败: %s", last_error)
         return None
